@@ -1,0 +1,54 @@
+{
+  "name": "markdown-bold-lint",
+  "displayName": "Markdown Bold Lint",
+  "description": "Lint Markdown bold text for rendering breakages around particles, quotes, and punctuation.",
+  "publisher": "0disoft",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0disoft/markdown-bold-lint"
+  },
+  "icon": "media/icon.png",
+  "version": "1.0.1",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown",
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Markdown Bold Lint",
+      "properties": {
+        "markdownBoldLint.boldIssueUnderline": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show underline diagnostics for bold rendering break patterns. When false, issues only appear in the Problems view."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "pnpm run compile && pnpm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.107.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.48.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
