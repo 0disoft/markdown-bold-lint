@@ -3,11 +3,36 @@
 import * as vscode from "vscode";
 
 const DIAGNOSTIC_SOURCE = "markdown-bold-lint";
+const DIAGNOSTIC_CODES = {
+  TRAILING_SYMBOL: "MBL001",
+  UNDERSCORE_CJK: "MBL002",
+  CONTROL_CHAR: "MBL005",
+} as const;
+const REFRESH_DEBOUNCE_MS = 150;
+const MAX_PREWARM_FILES = 2000;
+const EXCLUDED_WORKSPACE_GLOBS = [
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/out/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/coverage/**",
+  "**/.vscode-test/**",
+] as const;
 const BOLD_REGEX = /(\*\*|__)([^\r\n]+?)\1/g;
 const CJK_REGEX = /[가-힣一-龯ぁ-ゟ゠-ヿ]/;
 const PROBLEMATIC_TRAILING_SYMBOL_REGEX =
   /[)"'\]\}）］｝”’」』】!?:;%+&@$\^=|\/§※•！？，：；％,.\~#\-·…。、＆＠／]$/;
 const CONTROL_CHAR_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
+
+type DiagnosticCode = (typeof DIAGNOSTIC_CODES)[keyof typeof DIAGNOSTIC_CODES];
+
+type DiagnosticIssue = {
+  message: string;
+  severity: vscode.DiagnosticSeverity;
+  code: DiagnosticCode;
+  highlightExtra: number;
+};
 
 export function activate(context: vscode.ExtensionContext) {
   const diagnostics = vscode.languages.createDiagnosticCollection(DIAGNOSTIC_SOURCE);
@@ -29,10 +54,12 @@ export function activate(context: vscode.ExtensionContext) {
     diagnostics.set(document.uri, result.diagnostics);
     applyControlCharDecorations(document, result.controlCharDecorations, controlCharDecoration);
   };
+  const refreshDebounced = debounce(refresh, REFRESH_DEBOUNCE_MS);
+  context.subscriptions.push({ dispose: () => refreshDebounced.cancel() });
 
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(refresh),
-    vscode.workspace.onDidChangeTextDocument((event) => refresh(event.document)),
+    vscode.workspace.onDidChangeTextDocument((event) => refreshDebounced(event.document)),
     vscode.workspace.onDidCloseTextDocument((document) => diagnostics.delete(document.uri)),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document) {
@@ -51,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
   for (const document of vscode.workspace.textDocuments) {
     refresh(document);
   }
+  void prewarmWorkspaceDiagnostics(refresh);
 }
 
 export function deactivate() {}
@@ -62,7 +90,7 @@ type LintOptions = {
 function getLintOptions(): LintOptions {
   const config = vscode.workspace.getConfiguration("markdownBoldLint");
   return {
-    showBoldUnderline: config.get<boolean>("boldIssueUnderline", false),
+    showBoldUnderline: config.get<boolean>("boldIssueUnderline") ?? true,
   };
 }
 
@@ -158,7 +186,7 @@ function collectControlCharDiagnostics(
       vscode.DiagnosticSeverity.Warning,
     );
     diagnostic.source = DIAGNOSTIC_SOURCE;
-    diagnostic.code = "MBL005";
+    diagnostic.code = DIAGNOSTIC_CODES.CONTROL_CHAR;
     diagnostics.push(diagnostic);
   }
 }
@@ -180,14 +208,14 @@ function detectIssue(
   content: string,
   after: string,
 ):
-  | { message: string; severity: vscode.DiagnosticSeverity; code: string; highlightExtra: number }
+  | DiagnosticIssue
   | null {
   const isAfterCjk = after !== "" && CJK_REGEX.test(after);
   const endsWithProblematicSymbol = PROBLEMATIC_TRAILING_SYMBOL_REGEX.test(content);
 
   if (delimiter === "__" && isAfterCjk) {
     return {
-      code: "MBL002",
+      code: DIAGNOSTIC_CODES.UNDERSCORE_CJK,
       severity: vscode.DiagnosticSeverity.Warning,
       highlightExtra: 1,
       message:
@@ -197,7 +225,7 @@ function detectIssue(
 
   if (isAfterCjk && endsWithProblematicSymbol) {
     return {
-      code: "MBL001",
+      code: DIAGNOSTIC_CODES.TRAILING_SYMBOL,
       severity: vscode.DiagnosticSeverity.Warning,
       highlightExtra: 1,
       message:
@@ -240,4 +268,50 @@ function maskInlineCode(lineText: string): string {
   }
 
   return result;
+}
+
+function debounce<T extends (...args: never[]) => void>(
+  fn: T,
+  waitMs: number,
+): T & { cancel: () => void } {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debounced = ((...args: Parameters<T>) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => fn(...args), waitMs);
+  }) as T & { cancel: () => void };
+
+  debounced.cancel = () => {
+    if (timeout) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+  };
+
+  return debounced;
+}
+
+async function prewarmWorkspaceDiagnostics(
+  refresh: (document: vscode.TextDocument) => void,
+): Promise<void> {
+  if (!vscode.workspace.workspaceFolders?.length) {
+    return;
+  }
+  const exclude =
+    EXCLUDED_WORKSPACE_GLOBS.length > 0
+      ? `{${EXCLUDED_WORKSPACE_GLOBS.join(",")}}`
+      : undefined;
+  const uris = await vscode.workspace.findFiles(
+    "**/*.md",
+    exclude,
+    MAX_PREWARM_FILES,
+  );
+  await Promise.all(
+    uris.map(async (uri) => {
+      const document = await vscode.workspace.openTextDocument(uri);
+      refresh(document);
+    }),
+  );
 }

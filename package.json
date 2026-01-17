@@ -9,7 +9,7 @@
     "url": "https://github.com/0disoft/markdown-bold-lint"
   },
   "icon": "media/icon.png",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.104.0"
   },
