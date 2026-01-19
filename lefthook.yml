@@ -1,0 +1,9 @@
+# Lefthook 설정 파일
+# 문서: https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: oxlint
+      glob: "*.{js,ts,jsx,tsx,mjs,mts,svelte}"
+      run: bunx oxlint {staged_files}

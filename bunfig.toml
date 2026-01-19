@@ -1,0 +1,6 @@
+# Bun 워크스페이스 설정
+# https://bun.sh/docs/install/workspaces
+
+[install]
+# 의존성 설치 시 lockfile 자동 생성
+auto = "auto"
