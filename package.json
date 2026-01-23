@@ -9,15 +9,33 @@
     "url": "https://github.com/0disoft/markdown-bold-lint"
   },
   "icon": "media/icon.png",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "engines": {
     "vscode": "^1.104.0"
   },
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "markdown",
+    "lint",
+    "bold",
+    "formatting",
+    "typography",
+    "punctuation",
+    "cjk",
+    "korean",
+    "japanese",
+    "chinese",
+    "spacing",
+    "renderer",
+    "diagnostics",
+    "proofread",
+    "writing"
+  ],
   "activationEvents": [
     "onLanguage:markdown",
+    "onLanguage:mdx",
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
@@ -42,7 +60,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.104.0",
+    "@types/vscode": "1.104.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "typescript-eslint": "^8.48.1",

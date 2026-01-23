@@ -19,6 +19,14 @@ const EXCLUDED_WORKSPACE_GLOBS = [
   "**/coverage/**",
   "**/.vscode-test/**",
 ] as const;
+const MARKDOWN_GLOBS = [
+  "**/*.md",
+  "**/*.mdx",
+  "**/*.mdc",
+  "**/*.markdown",
+  "**/*.mdoc",
+] as const;
+const MARKDOWN_EXTENSIONS = new Set([".md", ".mdx", ".mdc", ".markdown", ".mdoc"]);
 const BOLD_REGEX = /(\*\*|__)([^\r\n]+?)\1/g;
 const CJK_REGEX = /[가-힣一-龯ぁ-ゟ゠-ヿ]/;
 const PROBLEMATIC_TRAILING_SYMBOL_REGEX =
@@ -46,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(controlCharDecoration);
 
   const refresh = (document: vscode.TextDocument) => {
-    if (document.languageId !== "markdown") {
+    if (!isMarkdownDocument(document)) {
       return;
     }
     const options = getLintOptions();
@@ -60,7 +68,11 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(refresh),
     vscode.workspace.onDidChangeTextDocument((event) => refreshDebounced(event.document)),
-    vscode.workspace.onDidCloseTextDocument((document) => diagnostics.delete(document.uri)),
+    vscode.workspace.onDidDeleteFiles((event) => {
+      for (const uri of event.files) {
+        diagnostics.delete(uri);
+      }
+    }),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document) {
         refresh(editor.document);
@@ -92,6 +104,19 @@ function getLintOptions(): LintOptions {
   return {
     showBoldUnderline: config.get<boolean>("boldIssueUnderline") ?? true,
   };
+}
+
+function isMarkdownDocument(document: vscode.TextDocument): boolean {
+  if (document.languageId === "markdown" || document.languageId === "mdx") {
+    return true;
+  }
+  const lowerFileName = document.fileName.toLowerCase();
+  for (const extension of MARKDOWN_EXTENSIONS) {
+    if (lowerFileName.endsWith(extension)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function collectDiagnostics(
@@ -299,12 +324,14 @@ async function prewarmWorkspaceDiagnostics(
   if (!vscode.workspace.workspaceFolders?.length) {
     return;
   }
+  const include =
+    MARKDOWN_GLOBS.length > 1 ? `{${MARKDOWN_GLOBS.join(",")}}` : MARKDOWN_GLOBS[0];
   const exclude =
     EXCLUDED_WORKSPACE_GLOBS.length > 0
       ? `{${EXCLUDED_WORKSPACE_GLOBS.join(",")}}`
       : undefined;
   const uris = await vscode.workspace.findFiles(
-    "**/*.md",
+    include,
     exclude,
     MAX_PREWARM_FILES,
   );

@@ -8,6 +8,7 @@ Detects bold rendering breakage in Markdown when a bold run ends with certain sy
 - Detects bold text ending with symbols like `)`, `]`, `"`, `,`, `.`, `~`, `#`, `+`, `&`, `@`, `$`, `^`, `=`, `|`, `§`, `※`, `•`, `…`, `·`, `-`, `、`, `。`, `/` when CJK text follows *without a space* (including common fullwidth punctuation variants like `！？，：；％`, `／`, `）`, `】`).
 - Warns when underscore-bold (`__...__`) is immediately followed by CJK text.
 - Warns about invisible control characters (U+0000~U+001F, excluding tab/newline).
+- Supports Markdown extensions by default (`.md`, `.mdx`, `.mdc`, `.markdown`, `.mdoc`).
 
 ## Fix Suggestions
 
